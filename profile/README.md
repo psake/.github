@@ -41,6 +41,7 @@ We welcome all contributors! Whether you're writing code, improving docs, sharin
 ## 📖 Resources
 
 - 📘 [Getting Started Guide](https://github.com/psake/psake/wiki)
+- 🗨️ [Join the PowerShell Community Discord](https://discord.gg/powershell) (see the #psake channel!)
 - 🧰 [PowerShell Gallery: psake](https://www.powershellgallery.com/packages/psake)
 - 🎥 [Video Tutorials & Talks](https://www.youtube.com/results?search_query=psake) *(community-submitted)*
 
