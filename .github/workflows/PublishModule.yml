@@ -42,14 +42,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Bootstrap
-        shell: pwsh
-        run: ./build.ps1 -Task 'Init' -Bootstrap
 
       - name: Check if version is already published
         id: check_if_versions_bumped
         shell: pwsh
         run: |
+          Install-Module BuildHelpers
           Import-Module BuildHelpers
           Set-BuildEnvironment -Force
           [version]$githubVersion = Get-MetaData -Path $env:BHPSModuleManifest -PropertyName 'ModuleVersion' -ErrorAction 'Stop'
