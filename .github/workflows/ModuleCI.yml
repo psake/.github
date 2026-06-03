@@ -43,9 +43,29 @@ jobs:
         with:
           name: Unit Test Results (OS ${{ matrix.os }})
           path: ./tests/out/testResults.xml
+  test_powershell:
+    name: Run Tests (Windows PowerShell 5.1)
+    # Windows PowerShell 5.1 (Desktop) is not a runner OS, so it is run as a
+    # separate job using the built-in `powershell` shell on windows-latest.
+    # Modules that declare Windows PowerShell (Desktop) support must build and
+    # test cleanly on the lowest supported engine, not just PowerShell 7+.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        shell: powershell
+        run: ./build.ps1 -Task Test -Bootstrap
+      - name: Upload Unit Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Unit Test Results (Windows PowerShell 5.1)
+          path: ./tests/out/testResults.xml
   publish-test-results:
     name: "Publish Unit Tests Results"
-    needs: test
+    needs:
+      - test
+      - test_powershell
     runs-on: ubuntu-latest
     # the test job might be skipped, we don't need to run this job then
     if: success() || failure()
