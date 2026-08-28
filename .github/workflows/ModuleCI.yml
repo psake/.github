@@ -40,7 +40,7 @@ jobs:
     name: Run Linters
     runs-on: [ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Validates CHANGELOG.md against the Keep a Changelog format. Level and depth are
       # fails: the action also enforces a SemVer rule that a patch release may contain
       # only Fixed and Security sections, and existing psake module histories violate
@@ -57,7 +57,7 @@ jobs:
           validation_level: ${{ inputs.changelog_validation_level }}
           validation_depth: ${{ inputs.changelog_validation_depth }}
           path: ./CHANGELOG.md
-      - uses: streetsidesoftware/cspell-action@v6
+      - uses: streetsidesoftware/cspell-action@v9
         with:
           strict: false
           suggestions: true
@@ -66,7 +66,7 @@ jobs:
         name: Apply PSScriptAnalyzer Fixes
         run: Invoke-ScriptAnalyzer . -Fix
       - name: PSScriptAnalyzer Fixes
-        uses: reviewdog/action-suggester@v1.21.0
+        uses: reviewdog/action-suggester@v1.24.3
         with:
           tool_name: "PSScriptAnalyzer"
   test:
@@ -78,13 +78,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Test
         shell: pwsh
         run: ./build.ps1 -Task Test -Bootstrap
       - name: Upload Unit Test Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Unit Test Results (OS ${{ matrix.os }})
           path: ./tests/out/testResults.xml
@@ -92,7 +92,7 @@ jobs:
         # Skipped when the build produced no coverage report, so a module that does
         # not measure coverage is not failed for it.
         if: always() && hashFiles(inputs.code_coverage_report_path) != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Code Coverage Results (OS ${{ matrix.os }})
           path: ${{ inputs.code_coverage_report_path }}
@@ -135,13 +135,13 @@ jobs:
     # test cleanly on the lowest supported engine, not just PowerShell 7+.
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Test
         shell: powershell
         run: ./build.ps1 -Task Test -Bootstrap
       - name: Upload Unit Test Results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Unit Test Results (Windows PowerShell 5.1)
           path: ./tests/out/testResults.xml
@@ -149,7 +149,7 @@ jobs:
         # Skipped when the build produced no coverage report, so a module that does
         # not measure coverage is not failed for it.
         if: always() && hashFiles(inputs.code_coverage_report_path) != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Code Coverage Results (Windows PowerShell 5.1)
           path: ${{ inputs.code_coverage_report_path }}
@@ -195,7 +195,7 @@ jobs:
     if: ${{ !cancelled() }}
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           # Restricted to the test result artifacts. The test jobs also upload code
           # coverage reports, and the publisher below would try to read those as test
