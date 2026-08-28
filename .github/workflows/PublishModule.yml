@@ -40,7 +40,7 @@ jobs:
       module_name: ${{ steps.check_if_versions_bumped.outputs.MODULE_NAME }}
       new_version: ${{ steps.check_if_versions_bumped.outputs.NEW_VERSION }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check if version is already published
         id: check_if_versions_bumped
         shell: pwsh
@@ -111,7 +111,7 @@ jobs:
     needs:
       - check_version
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Read and validate changelog (keepachangelog)
         id: changelog
         uses: mindsers/changelog-reader-action@v2
@@ -120,7 +120,7 @@ jobs:
           version: ${{ needs.check_version.outputs.new_version }}
           path: ./CHANGELOG.md
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.check_version.outputs.new_version }}
           name: Release ${{ steps.changelog.outputs.version }}
@@ -135,7 +135,7 @@ jobs:
       - check_version
     if: needs.check_version.outputs.version_bumped == 'True'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Publish to PSGallery
         shell: pwsh
         env:
