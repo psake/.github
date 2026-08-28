@@ -18,6 +18,18 @@ on:
         required: false
         type: number
         default: 100
+      code_coverage_report_path:
+        description: >-
+          Workspace-relative path to the JaCoCo code coverage report the build
+          produces. Every step that uses it is skipped when no file is there, so
+          a module that does not measure coverage needs no configuration. The
+          default follows the tests/out/ convention the test results already use.
+          A module that leaves $PSBPreference.Test.CodeCoverage.OutputFile at the
+          PowerShellBuild default writes codeCoverage.xml to the project root
+          instead, and should point this input at that path.
+        required: false
+        type: string
+        default: 'tests/out/coverage.xml'
 permissions:
   checks: write
   pull-requests: write
@@ -76,6 +88,45 @@ jobs:
         with:
           name: Unit Test Results (OS ${{ matrix.os }})
           path: ./tests/out/testResults.xml
+      - name: Upload Code Coverage Results
+        # Skipped when the build produced no coverage report, so a module that does
+        # not measure coverage is not failed for it.
+        if: always() && hashFiles(inputs.code_coverage_report_path) != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Code Coverage Results (OS ${{ matrix.os }})
+          path: ${{ inputs.code_coverage_report_path }}
+      # Renders the JaCoCo totals into the run summary so the number is visible without
+      # downloading the artifact. Deliberately reports and never gates: Pester instruments
+      # the current session only, so anything a test exercises in a child process is
+      # uncounted and the figure understates real coverage. It is a floor and a trend
+      # line, and a build-failing threshold over it would be actively misleading. Parsed
+      # in PowerShell rather than by a coverage action because the common ones read
+      # Cobertura, and this keeps the caveat above attached to the number it describes.
+      - name: Summarize Code Coverage
+        if: always() && hashFiles(inputs.code_coverage_report_path) != ''
+        shell: pwsh
+        env:
+          COVERAGE_REPORT_PATH: ${{ inputs.code_coverage_report_path }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$report = Get-Content -Path $env:COVERAGE_REPORT_PATH -Raw
+          $summary = @(
+              '### Code coverage'
+              ''
+              '| Metric | Covered | Total | Coverage |'
+              '| --- | ---: | ---: | ---: |'
+              foreach ($counter in $report.report.counter) {
+                  $covered = [int]$counter.covered
+                  $total = $covered + [int]$counter.missed
+                  $percent = if ($total -gt 0) { 100 * $covered / $total } else { 0 }
+                  '| {0} | {1} | {2} | {3:N1}% |' -f $counter.type.ToLower(), $covered, $total, $percent
+              }
+              ''
+              ('_Measured in the test session only, so code exercised in child processes is not ' +
+               'counted. Treat this as a floor and a trend line, not as the true figure._')
+          ) -join "`n"
+          [IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, $summary + "`n", [Text.UTF8Encoding]::new($false))
   test_powershell:
     name: Run Tests (Windows PowerShell 5.1)
     # Windows PowerShell 5.1 (Desktop) is not a runner OS, so it is run as a
@@ -94,6 +145,45 @@ jobs:
         with:
           name: Unit Test Results (Windows PowerShell 5.1)
           path: ./tests/out/testResults.xml
+      - name: Upload Code Coverage Results
+        # Skipped when the build produced no coverage report, so a module that does
+        # not measure coverage is not failed for it.
+        if: always() && hashFiles(inputs.code_coverage_report_path) != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: Code Coverage Results (Windows PowerShell 5.1)
+          path: ${{ inputs.code_coverage_report_path }}
+      # Renders the JaCoCo totals into the run summary so the number is visible without
+      # downloading the artifact. Deliberately reports and never gates: Pester instruments
+      # the current session only, so anything a test exercises in a child process is
+      # uncounted and the figure understates real coverage. It is a floor and a trend
+      # line, and a build-failing threshold over it would be actively misleading. Parsed
+      # in PowerShell rather than by a coverage action because the common ones read
+      # Cobertura, and this keeps the caveat above attached to the number it describes.
+      - name: Summarize Code Coverage
+        if: always() && hashFiles(inputs.code_coverage_report_path) != ''
+        shell: powershell
+        env:
+          COVERAGE_REPORT_PATH: ${{ inputs.code_coverage_report_path }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [xml]$report = Get-Content -Path $env:COVERAGE_REPORT_PATH -Raw
+          $summary = @(
+              '### Code coverage'
+              ''
+              '| Metric | Covered | Total | Coverage |'
+              '| --- | ---: | ---: | ---: |'
+              foreach ($counter in $report.report.counter) {
+                  $covered = [int]$counter.covered
+                  $total = $covered + [int]$counter.missed
+                  $percent = if ($total -gt 0) { 100 * $covered / $total } else { 0 }
+                  '| {0} | {1} | {2} | {3:N1}% |' -f $counter.type.ToLower(), $covered, $total, $percent
+              }
+              ''
+              ('_Measured in the test session only, so code exercised in child processes is not ' +
+               'counted. Treat this as a floor and a trend line, not as the true figure._')
+          ) -join "`n"
+          [IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, $summary + "`n", [Text.UTF8Encoding]::new($false))
   publish-test-results:
     name: "Publish Unit Tests Results"
     needs:
@@ -107,6 +197,10 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
+          # Restricted to the test result artifacts. The test jobs also upload code
+          # coverage reports, and the publisher below would try to read those as test
+          # results if they landed in the same directory.
+          pattern: Unit Test Results*
           path: artifacts
 
       - name: Publish Unit Test Results
