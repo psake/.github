@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # The shared workflows here reference eight actions, and every psake module that
+  # calls them inherits those versions. Keeping them current in one place is the
+  # whole point of the shared workflow, and doing it by hand is how tags rot.
+  #
+  # Grouped into a single pull request per run: a volunteer project does not want
+  # eight separate bumps a week, and these actions are not interdependent, so
+  # reviewing them together loses nothing.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
