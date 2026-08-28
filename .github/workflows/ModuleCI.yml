@@ -12,6 +12,17 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+      # Validates CHANGELOG.md against the Keep a Changelog format. Skipped when the
+      # repository has no changelog, so a consumer without one is not failed for it.
+      # validation_depth defaults to 10 entries; raised so older releases are checked
+      # too, which is where format drift accumulates unnoticed.
+      - name: Validate changelog (keepachangelog)
+        if: hashFiles('CHANGELOG.md') != ''
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_level: error
+          validation_depth: 100
+          path: ./CHANGELOG.md
       - uses: streetsidesoftware/cspell-action@v6
         with:
           strict: false
