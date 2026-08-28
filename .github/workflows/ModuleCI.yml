@@ -1,6 +1,23 @@
 name: CI
 on:
   workflow_call:
+    inputs:
+      changelog_validation_level:
+        description: >-
+          How CHANGELOG.md format problems are treated: none, warn, or error.
+          Defaults to warn because the check enforces a SemVer rule -- a patch
+          release may contain only Fixed and Security sections -- that published
+          history cannot be edited to satisfy. Set error once a repository is clean.
+        required: false
+        type: string
+        default: 'warn'
+      changelog_validation_depth:
+        description: >-
+          How many entries to validate, newest first. Lower this to enforce on recent
+          releases while ignoring older ones that cannot be fixed.
+        required: false
+        type: number
+        default: 100
 permissions:
   checks: write
   pull-requests: write
@@ -12,7 +29,7 @@ jobs:
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-      # Validates CHANGELOG.md against the Keep a Changelog format. Reports rather than
+      # Validates CHANGELOG.md against the Keep a Changelog format. Level and depth are
       # fails: the action also enforces a SemVer rule that a patch release may contain
       # only Fixed and Security sections, and existing psake module histories violate
       # that in releases already published, which no edit can undo. Raise to error once
@@ -25,8 +42,8 @@ jobs:
         if: hashFiles('CHANGELOG.md') != ''
         uses: mindsers/changelog-reader-action@v2
         with:
-          validation_level: warn
-          validation_depth: 100
+          validation_level: ${{ inputs.changelog_validation_level }}
+          validation_depth: ${{ inputs.changelog_validation_depth }}
           path: ./CHANGELOG.md
       - uses: streetsidesoftware/cspell-action@v6
         with:
