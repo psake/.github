@@ -24,6 +24,78 @@ jobs:
         uses: reviewdog/action-suggester@v1.21.0
         with:
           tool_name: "PSScriptAnalyzer"
+  changelog:
+    name: Check Changelog Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check CHANGELOG.md against the Keep a Changelog format
+        shell: pwsh
+        run: |
+          # Verify CHANGELOG.md against the Keep a Changelog format -- but only when the file
+          # says that is the format it follows. A repository that never made the claim is not
+          # held to it, so adding this to a shared workflow cannot ambush a consumer.
+          $ErrorActionPreference = 'Stop'
+
+          $changelogPath = Join-Path -Path $PWD -ChildPath 'CHANGELOG.md'
+          if (-not (Test-Path -LiteralPath $changelogPath)) {
+              Write-Host 'No CHANGELOG.md; nothing to check.'
+              exit 0
+          }
+
+          $line = Get-Content -LiteralPath $changelogPath
+          if (-not ($line -match 'keep ?a ?changelog')) {
+              Write-Host 'CHANGELOG.md does not declare the Keep a Changelog format; nothing to check.'
+              exit 0
+          }
+
+          # The six types Keep a Changelog defines. Anything else is a heading someone invented,
+          # which is how a changelog stops being machine-readable.
+          $validType = @('Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security')
+
+          $problem = [System.Collections.Generic.List[string]]::new()
+          $inFence = $false
+          $sawUnreleased = $false
+
+          for ($i = 0; $i -lt $line.Count; $i++) {
+              $text = $line[$i]
+              if ($text.TrimStart().StartsWith('```')) { $inFence = -not $inFence; continue }
+              if ($inFence) { continue }
+
+              $number = $i + 1
+
+              if ($text -match '^##\s+(?!#)(.*)$') {
+                  $heading = $Matches[1].Trim()
+                  if ($heading -match '^\[?Unreleased\]?$') {
+                      $sawUnreleased = $true
+                      continue
+                  }
+                  # Keep a Changelog writes a release as: ## [1.0.0] - 2017-06-20
+                  if ($heading -notmatch '^\[[^\]]+\]\s+-\s+\d{4}-\d{2}-\d{2}$') {
+                      $problem.Add("line ${number}: release heading is not '## [version] - YYYY-MM-DD': ## $heading")
+                  }
+              } elseif ($text -match '^###\s+(?!#)(.*)$') {
+                  $type = $Matches[1].Trim()
+                  if ($type -notin $validType) {
+                      $problem.Add("line ${number}: '$type' is not a Keep a Changelog type ($($validType -join ', '))")
+                  }
+              }
+          }
+
+          if (-not $sawUnreleased) {
+              $problem.Add('no "## Unreleased" section; Keep a Changelog keeps one at the top for work not yet released')
+          }
+
+          if ($problem.Count -gt 0) {
+              Write-Host "CHANGELOG.md does not follow the Keep a Changelog format it declares:`n"
+              $problem | ForEach-Object { Write-Host "  $_" }
+              Write-Host "`nSee https://keepachangelog.com for the format."
+              exit 1
+          }
+
+          Write-Host "CHANGELOG.md follows the Keep a Changelog format ($($line.Count) lines checked)."
+          exit 0
+
   test:
     name: Run Pwsh Tests
     # We still have the azure pipeline setup that's running windows
